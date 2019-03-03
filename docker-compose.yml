@@ -1,0 +1,96 @@
+# VERSION 
+
+version: '3'
+
+
+volumes:
+  postgres_status_volume:
+
+
+services:
+  common-env:
+    image: jannash/noop:0.1.0
+    container_name: geo-django-rf-server_common-env
+    
+    # Volume paths
+    environment:
+      - &postgres_status_volume    postgres_status_volume:/postgres_status
+      - &app_source_volume         ./app/source:/usr/share/geo_django_rf/volumes/app_source_volume
+
+    # Volume path environment variables
+    environment: &postgres_status_volume_path
+      STATUS_VOLUME_PATH:     /postgres_status
+    environment: &app_source_volume_path
+      APP_SOURCE_VOLUME_PATH: /usr/share/geo_django_rf/volumes/app_source_volume
+
+    # postgres
+    environment: &postgres_version
+      POSTGRES_VERSION: 9.6
+    environment: &pg_container_alias
+      POSTGRES_CONTAINER_ALIAS: &pg_container pg 
+    environment: &pg_container_environment
+      POSTGRES_USER: &pg_user django
+      POSTGRES_DB: &pg_db django
+      POSTGRES_TCP_PORT: &pg_port 5432
+    environment: &django_container_environment
+      DATABASE_NAME: *pg_user
+      DATABASE_USER: *pg_db
+      DATABASE_SERVICE_HOST: *pg_container
+      DATABASE_SERVICE_PORT: *pg_port
+
+  postgres:
+    image: mdillon/postgis:9.6-alpine
+    container_name: geo-django-rf-server_postgres
+    restart: always
+    volumes:
+      # /var/lib/postgresql/data is the default data-directory 
+      # location in the official postgres-images, one of which
+      # is the base image for this one
+      - ./postgres/pgdata_volume:/var/lib/postgresql/data
+    environment:
+      <<: *pg_container_environment
+  
+  postgres-monitor:
+    build:
+      context: ${IMAGE_DIRECTORY_PATH}/${POSTGRES_MONITOR_DIR_NAME}
+      args:
+        <<: *postgres_status_volume_path
+        <<: *postgres_version
+    image: geo_django_rf/postgres-monitor:${POSTGRES_MONITOR_VERSION}
+    container_name: geo-django-rf-server_postgres-monitor
+    depends_on:
+      - postgres
+    links:
+      - postgres:pg
+    volumes:
+      - *postgres_status_volume
+    environment:
+      <<: *postgres_status_volume_path
+      <<: *pg_container_alias
+      <<: *pg_container_environment
+      POSTGRES_UP_POLL_INTERVAL: 60
+      POSTGRES_DOWN_POLL_INTERVAL: 1
+
+  web:
+    build: 
+      context: ${IMAGE_DIRECTORY_PATH}/${DJANGO_GEO_RF_DIR_NAME}
+      args:
+        <<: *app_source_volume_path
+    image: geo_django_rf/django-geo-rf:${DJANGO_GEO_RF_VERSION}
+    container_name: geo-django-rf-server_web
+    depends_on:
+      - postgres
+      - postgres-monitor
+    links:
+      - postgres:pg
+    volumes:
+      - *postgres_status_volume
+      - *app_source_volume
+    ports:
+      - "8000:8000"
+    entrypoint: /postgres_status/wait_for_postgres
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      <<: *django_container_environment
+      <<: *app_source_volume_path
+      DEBUG: "true"
