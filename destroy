@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+__dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "${__dir}"
+
+
+docker-compose kill
+docker-compose rm -f
+docker system prune -f
+rm -rf postgres/pgdata_volume
+mkdir -p postgres/pgdata_volume

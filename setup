@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -e
+
+
+MISSING_ENV_VAR_MSG="Environment variable needs to be set and non-empty."
+: "${IMAGE_DIRECTORY_PATH:?${MISSING_ENV_VAR_MSG}}"
+: "${POSTGRES_MONITOR_DIR_NAME:?${MISSING_ENV_VAR_MSG}}"
+: "${POSTGRES_MONITOR_VERSION:?${MISSING_ENV_VAR_MSG}}"
+: "${DJANGO_GEO_RF_DIR_NAME:?${MISSING_ENV_VAR_MSG}}"
+: "${DJANGO_GEO_RF_VERSION:?${MISSING_ENV_VAR_MSG}}"
+
+
+__dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "${__dir}"
+
+mkdir -p "${IMAGE_DIRECTORY_PATH}"
+cd "${IMAGE_DIRECTORY_PATH}"
+IMAGE_DIR="$(realpath .)"
+
+
+if [[ ! -d "${POSTGRES_MONITOR_DIR_NAME}" ]];
+then
+    git clone git@github.com:JanNash/docker-postgres-monitor "${POSTGRES_MONITOR_DIR_NAME}"
+fi
+cd "${POSTGRES_MONITOR_DIR_NAME}"
+git checkout "${POSTGRES_MONITOR_VERSION}"
+
+
+cd "${IMAGE_DIR}"
+
+
+if [[ ! -d "${DJANGO_GEO_RF_DIR_NAME}" ]];
+then
+    git clone git@github.com:JanNash/docker-django-geo-rf "${DJANGO_GEO_RF_DIR_NAME}"
+fi
+cd "${DJANGO_GEO_RF_DIR_NAME}"
+git checkout "${DJANGO_GEO_RF_VERSION}"
+
+
+cd "${__dir}"
+
+docker-compose build

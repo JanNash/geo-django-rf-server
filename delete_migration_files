@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+__dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "${__dir}"
+
+find ./app/source/geo_django_rf/restapi/migrations -type f -not -name '__init__.py' -print0 | xargs -0 rm --
+
